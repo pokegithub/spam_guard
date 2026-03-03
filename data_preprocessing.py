@@ -31,6 +31,10 @@ df['label'] = df['label'].replace({'0': 'ham', '1': 'spam'})
 df = df[df['label'].isin(['ham', 'spam'])]
 df['label'] = df['label'].replace({'ham': 0, 'spam': 1})
 
+df1['label'] = df1['label'].replace({'0': 'ham', '1': 'spam'})
+df1 = df1[df1['label'].isin(['ham', 'spam'])]
+df1['label'] = df1['label'].replace({'ham': 0, 'spam': 1})
+
 print("Dropping duplicates...")
 df = df.drop_duplicates(subset=['text'], keep='first').reset_index(drop=True)
 df1 = df1.drop_duplicates(subset=['text'], keep='first').reset_index(drop=True)
@@ -88,7 +92,10 @@ df = df[df['clean_text'].str.strip() != '']
 df1 = df1[df1['clean_text'].str.strip() != '']
 
 df = df[['text', 'clean_text', 'label', 'num_chars', 'num_words', 'num_sentences']]
-df1 = df1[['text', 'clean_text', 'num_chars', 'num_words', 'num_sentences']]
+df1 = df1[['text', 'label', 'clean_text', 'num_chars', 'num_words', 'num_sentences']]
+
+print(df.columns)
+print(df1.columns)
 
 print("Saving preprocessed data to CSV...")
 df.to_csv('preprocessed_training_data.csv', index = False)

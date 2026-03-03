@@ -9,7 +9,7 @@ df1 = pd.read_csv('preprocessed_testing_data.csv')
 x = df['clean_text']
 x1 = df1['clean_text']
 y = df['label']
-y1 = df['label']
+y1 = df1['label']
 
 tfidf = TfidfVectorizer(
     max_features=5000,  # keeping only top 5,000 most frequent/important words

@@ -51,4 +51,4 @@ print(combined_df.shape)
 print(combined_df.info())
 print(combined_df.columns)
 
-combined_df.to_csv("data.csv")
+combined_df.to_csv("data.csv", index = False)
