@@ -25,7 +25,7 @@ df = pd.read_csv('training_data.csv')
 df1 = pd.read_csv('testing_data.csv')
 
 df['text'] = df['text'].str.replace('Subject: ', '')
-df1['text'] = df['text'].str.replace('Subject: ', '')
+df1['text'] = df1['text'].str.replace('Subject: ', '')
 
 df['label'] = df['label'].replace({'0': 'ham', '1': 'spam'})
 df = df[df['label'].isin(['ham', 'spam'])]
@@ -101,5 +101,6 @@ print("Saving preprocessed data to CSV...")
 df.to_csv('preprocessed_training_data.csv', index = False)
 df1.to_csv('preprocessed_testing_data.csv', index = False)
 # index = False: prevents new column to be added as index
+
 
 print("Data preprocessing complete.")
