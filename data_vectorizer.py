@@ -1,31 +1,73 @@
+import os
+import logging
+import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from tqdm import tqdm
-import joblib
 
-df = pd.read_csv('preprocessed_training_data.csv')
-df1 = pd.read_csv('preprocessed_testing_data.csv')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+log = logging.getLogger(__name__)
 
-# Use .fillna('') just in case an empty string slipped past the preprocessing
-x = df['clean_text'].fillna('')
-x1 = df1['clean_text'].fillna('')
-y = df['label']
-y1 = df1['label'] # FIXED: Was accidentally grabbing df instead of df1
+TRAIN_PATH   = os.path.join(os.path.dirname(__file__), 'preprocessed_training_data.csv')
+TEST_PATH    = os.path.join(os.path.dirname(__file__), 'preprocessed_testing_data.csv')
 
-tfidf = TfidfVectorizer(
-    max_features=5000,  
-    min_df=5,           
-    ngram_range=(1, 2)  # FIXED: Bigrams active!
-)
+X_TRAIN_PKL  = os.path.join(os.path.dirname(__file__), 'x_training_vector.pkl')
+X_TEST_PKL   = os.path.join(os.path.dirname(__file__), 'x_testing_vector.pkl')
+Y_TRAIN_PKL  = os.path.join(os.path.dirname(__file__), 'y_training_vector.pkl')
+Y_TEST_PKL   = os.path.join(os.path.dirname(__file__), 'y_testing_vector.pkl')
+TFIDF_PKL    = os.path.join(os.path.dirname(__file__), 'tfidf_vectorizer.pkl')
 
-# FIXED: Testing set only uses .transform(), NEVER .fit_transform()
-x_vec = tfidf.fit_transform(tqdm(x, desc = 'Training: TF-IDF Vectorization'))
-x1_vec = tfidf.transform(tqdm(x1, desc = 'Testing: TF-IDF Vectorization'))
 
-joblib.dump(x_vec, 'x_training_vector.pkl')
-joblib.dump(x1_vec, 'x_testing_vector.pkl')
-joblib.dump(y, 'y_training_vector.pkl')
-joblib.dump(y1, 'y_testing_vector.pkl')
-joblib.dump(tfidf, 'tfidf_vectorizer.pkl')
+def main() -> None:
+    for path in (TRAIN_PATH, TEST_PATH):
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Preprocessed file not found: {path}. Run data_preprocessing.py first.")
 
-print("Successfully saved decoupled vector matrices!")
+    log.info("Loading preprocessed data...")
+    df_train = pd.read_csv(TRAIN_PATH)
+    df_test  = pd.read_csv(TEST_PATH)
+
+    # Defensive fill — should be empty after preprocessing, but guard anyway
+    x_train = df_train['clean_text'].fillna('')
+    x_test  = df_test['clean_text'].fillna('')
+    y_train = df_train['label']
+
+    # Testing data has no 'label' column — this is intentional.
+    # y_test is loaded from the test CSV directly in train.py to evaluate
+    # against raw labels that were held out before preprocessing.
+    if 'label' not in df_test.columns:
+        raise KeyError(
+            "'label' column not found in testing data. "
+            "The label column must be retained through dataset_split.py and data_preprocessing.py."
+        )
+    y_test = df_test['label']
+
+    log.info("Fitting TF-IDF vectorizer on training data...")
+    tfidf = TfidfVectorizer(
+        max_features=5000,
+        min_df=5,
+        ngram_range=(1, 2)
+    )
+
+    # CRITICAL: fit only on training data — transform on test.
+    # Wrapping sklearn's sparse transform in tqdm does nothing useful;
+    # the iteration completes before sklearn does any real work.
+    x_train_vec = tfidf.fit_transform(x_train)
+    log.info("Training matrix shape: %s", x_train_vec.shape)
+
+    log.info("Transforming test data...")
+    x_test_vec = tfidf.transform(x_test)
+    log.info("Test matrix shape: %s", x_test_vec.shape)
+
+    log.info("Saving vectors and vectorizer...")
+    joblib.dump(x_train_vec, X_TRAIN_PKL)
+    joblib.dump(x_test_vec,  X_TEST_PKL)
+    joblib.dump(y_train,     Y_TRAIN_PKL)
+    joblib.dump(y_test,      Y_TEST_PKL)
+    joblib.dump(tfidf,       TFIDF_PKL)
+
+    log.info("All artefacts saved. Vectorization complete.")
+
+
+if __name__ == '__main__':
+    main()
+    
