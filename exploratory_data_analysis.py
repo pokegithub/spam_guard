@@ -1,106 +1,143 @@
+"""
+Exploratory Data Analysis for SpamGuard.
+
+Run this script after data_preprocessing.py. It produces six plots:
+  1. Class distribution (pie chart)
+  2. Character count distribution by class
+  3. Word count distribution by class
+  4. Sentence count distribution by class
+  5. Feature correlation heatmap
+  6. Spam word cloud
+  7. Ham word cloud
+"""
+import os
+import logging
+from collections import Counter
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
-from collections import Counter
 
-df = pd.read_csv('preprocessed_training_data.csv')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+log = logging.getLogger(__name__)
 
-#print(df['label'].value_counts())
-#df = df.dropna(subset = ['clean_text'])
-#print(df['label'].isnull().sum())
-#print(df['clean_text'].isnull().sum())
-#print(df.columns)
-#print(df.columns)
-#print()
-#print("text column datatype:")
-#print(df['text'].dtype)
-#print("label column datatype:")
-#print(df['label'].dtype)
+DATA_PATH   = os.path.join(os.path.dirname(__file__), 'preprocessed_training_data.csv')
+OUTPUT_DIR  = os.path.join(os.path.dirname(__file__), 'eda_output')
 
-#plt.figure()
-#plt.pie(df['label'].value_counts(), labels = ['ham', 'spam'], autopct = '%0.2f')
-#plt.show()
+# Tokens introduced by preprocessing that would dominate the word cloud
+# without adding any linguistic signal
+CLOUD_STOPWORDS = {'num', 'webaddr', 'emailaddr', 'currency'}
 
-#print(df['label'].isnull().sum())
 
-#print(df.sample(10))
-#
-#print()
-#
-#print("Statistics for ham emails:")
-#print()
-#print(df[df['label'] == 0][['num_chars', 'num_words', 'num_sentences']].describe())
-#print()
-#print("Statistics for spam emails:")
-#print()
-#print(df[df['label'] == 1][['num_chars', 'num_words', 'num_sentences']].describe())
-#
-#print()
-#
-#plt.figure(figsize = (12, 6))
-#sns.histplot(df[df['label'] == 0]['num_chars'])
-#sns.histplot(df[df['label'] == 1]['num_chars'], color = 'red')
-#plt.show()
+def plot_class_distribution(df: pd.DataFrame, out_dir: str) -> None:
+    counts = df['label'].value_counts()
+    labels = ['Ham (0)', 'Spam (1)']
+    plt.figure(figsize=(6, 6))
+    plt.pie(counts, labels=labels, autopct='%0.2f%%', colors=['#4CAF50', '#F44336'])
+    plt.title('Class Distribution')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, '01_class_distribution.png'), dpi=150)
+    plt.close()
+    log.info("Saved: 01_class_distribution.png")
 
-#plt.figure()
-#sns.pairplot(df, hue = 'text')
-#plt.show()
 
-#print(df.columns)
+def plot_feature_distributions(df: pd.DataFrame, out_dir: str) -> None:
+    features = [
+        ('num_chars',     'Character Count'),
+        ('num_words',     'Word Count'),
+        ('num_sentences', 'Sentence Count'),
+    ]
+    for i, (col, title) in enumerate(features, start=2):
+        plt.figure(figsize=(10, 5))
+        sns.histplot(df[df['label'] == 0][col], label='Ham',  color='#4CAF50', kde=True)
+        sns.histplot(df[df['label'] == 1][col], label='Spam', color='#F44336', kde=True)
+        plt.xlabel(title)
+        plt.ylabel('Frequency')
+        plt.title(f'{title} Distribution by Class')
+        plt.legend()
+        plt.tight_layout()
+        fname = f'0{i}_{col}_distribution.png'
+        plt.savefig(os.path.join(out_dir, fname), dpi=150)
+        plt.close()
+        log.info("Saved: %s", fname)
 
-# custom stopwords to prevent frequently occuring words from outweighing other words in the map
-#custom_stopwords = ['num', 'webaddr', 'emailaddr', 'currency', 'escapelong']
-#
-#spam_wc = WordCloud(
-#    width=800, 
-#    height=400, 
-#    background_color='black', 
-#    colormap='Reds',
-#    stopwords=custom_stopwords,
-#    max_words=100
-#).generate(df[df['label'] == 1]['clean_text'].str.cat(sep = ' '))
-#
-#plt.figure(figsize=(10, 5))
-#plt.imshow(spam_wc, interpolation='bilinear')
-#plt.title('Spam Emails Word Cloud')
-#plt.axis('off')
-#plt.show()
 
-#plt.figure()
-#sns.heatmap(df.corr(numeric_only=True), annot = True)
-#plt.show()
+def plot_correlation_heatmap(df: pd.DataFrame, out_dir: str) -> None:
+    plt.figure(figsize=(7, 5))
+    sns.heatmap(
+        df[['label', 'num_chars', 'num_words', 'num_sentences']].corr(),
+        annot=True, fmt='.2f', cmap='coolwarm'
+    )
+    plt.title('Feature Correlation Heatmap')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, '05_correlation_heatmap.png'), dpi=150)
+    plt.close()
+    log.info("Saved: 05_correlation_heatmap.png")
 
-#ham_words = []
-#for i in df[df['label'] == 0]['clean_text'].tolist():
-#    for j in i.split():
-#        ham_words.append(j)
-#
-#print("Total ham emails left:", len(df[df['label'] == 0]))
-#print("Total words collected:", len(ham_words))
-#
-##print(Counter(ham_words))
-#
-#for word, count in Counter(ham_words).most_common(50):
-#    print(f"{word}: {count}")
-#
-#spam_words = []
-#for i in df[df['label'] == 1]['clean_text'].tolist():
-#    for j in i.split():
-#        spam_words.append(j)
-#
-#print("Total spam emails left:", len(df[df['label'] == 1]))
-#print("Total words collected:", len(spam_words))
-#
-#for word, count in Counter(spam_words).most_common(50):
-#    print(f"{word}: {count}")
 
-# 1. Check for actual Missing Values (NaN)
-null_count = df['clean_text'].isna().sum()
+def plot_word_cloud(df: pd.DataFrame, label: int, name: str,
+                    colour: str, out_dir: str, file_num: int) -> None:
+    corpus = df[df['label'] == label]['clean_text'].str.cat(sep=' ')
+    wc = WordCloud(
+        width=1200, height=600,
+        background_color='black',
+        colormap=colour,
+        stopwords=CLOUD_STOPWORDS,
+        max_words=100
+    ).generate(corpus)
 
-# 2. Check for empty strings ("", " ", "   ")
-# We use .str.strip() to chop off any invisible spaces before checking if it equals ""
-empty_string_count = (df['clean_text'].fillna('').str.strip() == '').sum()
+    plt.figure(figsize=(12, 6))
+    plt.imshow(wc, interpolation='bilinear')
+    plt.title(f'{name} Emails — Top Words')
+    plt.axis('off')
+    plt.tight_layout()
+    fname = f'0{file_num}_{name.lower()}_wordcloud.png'
+    plt.savefig(os.path.join(out_dir, fname), dpi=150)
+    plt.close()
+    log.info("Saved: %s", fname)
 
-print(f"Number of NaN / Null rows: {null_count}")
-print(f"Number of completely blank strings: {empty_string_count}")
+
+def print_top_words(df: pd.DataFrame) -> None:
+    for label, name in [(0, 'Ham'), (1, 'Spam')]:
+        subset = df[df['label'] == label]['clean_text'].dropna()
+        words = [w for text in subset for w in text.split()]
+        log.info("%s — total emails: %d | total tokens: %d", name, len(subset), len(words))
+        top = Counter(words).most_common(20)
+        log.info("%s top 20 tokens:\n%s", name,
+                 '\n'.join(f"  {w}: {c}" for w, c in top))
+
+
+def print_descriptive_stats(df: pd.DataFrame) -> None:
+    for label, name in [(0, 'Ham'), (1, 'Spam')]:
+        log.info("%s descriptive stats:\n%s", name,
+                 df[df['label'] == label][['num_chars', 'num_words', 'num_sentences']].describe())
+
+
+def main() -> None:
+    if not os.path.exists(DATA_PATH):
+        raise FileNotFoundError(f"Preprocessed training data not found: {DATA_PATH}")
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    log.info("Loading data...")
+    df = pd.read_csv(DATA_PATH)
+    log.info("Dataset shape: %s", df.shape)
+    log.info("Label distribution:\n%s", df['label'].value_counts())
+
+    print_descriptive_stats(df)
+    print_top_words(df)
+
+    log.info("Generating plots...")
+    plot_class_distribution(df, OUTPUT_DIR)
+    plot_feature_distributions(df, OUTPUT_DIR)
+    plot_correlation_heatmap(df, OUTPUT_DIR)
+    plot_word_cloud(df, label=1, name='Spam', colour='Reds',  out_dir=OUTPUT_DIR, file_num=6)
+    plot_word_cloud(df, label=0, name='Ham',  colour='Greens', out_dir=OUTPUT_DIR, file_num=7)
+
+    log.info("EDA complete. All plots saved to: %s", OUTPUT_DIR)
+
+
+if __name__ == '__main__':
+    main()
+  
